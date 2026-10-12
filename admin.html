@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知遇管理后台</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; }
+body { background:#f5f7fa; min-height:100vh; }
+.header { background:#2d3a4b; color:#fff; padding:0 30px; display:flex; justify-content:space-between; align-items:center; height:60px; position:sticky;top:0;z-index:100;}
+.logo { font-size:20px; font-weight:bold; }
+.container { display:flex; min-height:calc(100vh - 60px); }
+.sidebar { width:220px; background:#fff; border-right:1px solid #eee; padding:20px 0; }
+.menu-item { padding:12px 25px; cursor:pointer; color:#555; transition:all 0.2s; border-left:3px solid transparent; }
+.menu-item:hover { background:#f8f9ff; color:#667eea; }
+.menu-item.active { background:#f8f9ff; color:#667eea; border-left-color:#667eea; font-weight:500; }
+.main { flex:1; padding:25px; }
+.card { background:#fff; border-radius:8px; padding:20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+.card-title { font-size:16px; font-weight:600; margin-bottom:20px; color:#333; }
+.stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; margin-bottom:20px; }
+.stat-card { background:#fff; border-radius:8px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+.stat-num { font-size:28px; font-weight:bold; margin-bottom:5px; }
+.stat-label { color:#888; font-size:13px; }
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+table { width:100%; border-collapse:collapse; }
+th, td { padding:12px 15px; text-align:left; border-bottom:1px solid #f0f0f0; font-size:14px; }
+th { background:#f8f9fa; font-weight:600; color:#666; }
+tr:hover { background:#f8f9ff; }
+.badge { padding:3px 8px; border-radius:4px; font-size:12px; }
+.badge-success { background:#f6ffed; color:#52c41a; }
+.badge-warning { background:#fff7e6; color:#faad14; }
+.badge-danger { background:#fff2f0; color:#ff4d4f; }
+.badge-primary { background:#e6f7ff; color:#1890ff; }
+.btn { padding:6px 12px; border-radius:4px; border:none; cursor:pointer; font-size:12px; margin-right:5px; }
+.btn-danger { background:#ff4d4f; color:#fff; }
+.btn-primary { background:#667eea; color:#fff; }
+.tag { display:inline-block; background:#e8f0fe; color:#1967d2; padding:2px 6px; border-radius:3px; font-size:11px; margin:1px; }
+.page { display:none; }
+.page.active { display:block; }
+.form-input { padding:8px; border:1px solid #e0e0e0; border-radius:6px; margin-right:10px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">知遇 · 管理后台</div>
+  <div style="font-size:14px;color:rgba(255,255,255,0.7)">管理员</div>
+</div>
+<div class="container">
+  <div class="sidebar">
+    <div class="menu-item active" data-page="dashboard" onclick="showPage('dashboard')">数据看板</div>
+    <div class="menu-item" data-page="enterprises" onclick="showPage('enterprises')">企业管理</div>
+    <div class="menu-item" data-page="jobs" onclick="showPage('jobs')">岗位管理</div>
+    <div class="menu-item" data-page="talents" onclick="showPage('talents')">人才管理</div>
+    <div class="menu-item" data-page="matches" onclick="showPage('matches')">匹配记录</div>
+    <div class="menu-item" data-page="tags" onclick="showPage('tags')">标签管理</div>
+  </div>
+  <div class="main">
+    <!-- 数据看板 -->
+    <div id="page-dashboard" class="page active">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-num" style="color:#667eea" id="s-companies">0</div><div class="stat-label">认证企业</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#52c41a" id="s-jobs">0</div><div class="stat-label">在招岗位</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#faad14" id="s-talents">0</div><div class="stat-label">认证人才</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#f5222d" id="s-matches">0</div><div class="stat-label">成功匹配（≥60分）</div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-title">技术栈分布 Top10</div>
+          <canvas id="chartTech" height="250"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">近7日新增趋势</div>
+          <canvas id="chartTrend" height="250"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">最近匹配记录</div>
+        <table>
+          <thead><tr><th>时间</th><th>候选人</th><th>岗位</th><th>企业</th><th>匹配分</th></tr></thead>
+          <tbody id="recentMatches"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- 企业管理 -->
+    <div id="page-enterprises" class="page">
+      <div class="card">
+        <div class="card-title">企业列表</div>
+        <table><thead><tr><th>企业名称</th><th>信用代码</th><th>地址</th><th>联系人</th><th>认证状态</th><th>岗位数</th><th>操作</th></tr></thead><tbody id="enterpriseTable"></tbody></table>
+      </div>
+    </div>
+    <!-- 岗位管理 -->
+    <div id="page-jobs" class="page">
+      <div class="card">
+        <div class="card-title">岗位列表</div>
+        <table><thead><tr><th>岗位名称</th><th>企业</th><th>薪资</th><th>地址</th><th>技术栈</th><th>发布时间</th><th>状态</th><th>操作</th></tr></thead><tbody id="jobsTable"></tbody></table>
+      </div>
+    </div>
+    <!-- 人才管理 -->
+    <div id="page-talents" class="page">
+      <div class="card">
+        <div class="card-title">人才列表</div>
+        <table><thead><tr><th>姓名</th><th>认证</th><th>居住地</th><th>工作年限</th><th>期望薪资</th><th>技术栈</th><th>意向</th><th>操作</th></tr></thead><tbody id="talentsTable"></tbody></table>
+      </div>
+    </div>
+    <!-- 匹配记录 -->
+    <div id="page-matches" class="page">
+      <div class="card">
+        <div class="card-title">全部匹配记录</div>
+        <table><thead><tr><th>时间</th><th>候选人</th><th>岗位</th><th>企业</th><th>总分</th><th>技术</th><th>地理</th><th>意愿</th><th>文化</th></tr></thead><tbody id="matchesTable"></tbody></table>
+      </div>
+    </div>
+    <!-- 标签管理 -->
+    <div id="page-tags" class="page">
+      <div class="card">
+        <div class="card-title">技术标签管理 <button class="btn btn-primary" onclick="addTag()">+新增标签</button></div>
+        <div style="margin-bottom:15px">
+          <input type="text" class="form-input" id="newTag" placeholder="输入新标签名称">
+        </div>
+        <div id="tagList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+// 加载数据
+let companies = [], jobs = [], talents = [], matches = [];
+let tags = JSON.parse(localStorage.getItem('zhiyu_tech_tags') || JSON.stringify(['Python','Java','Go','C++','JavaScript','TypeScript','React','Vue','Node.js','PyTorch','TensorFlow','大模型','LLM','大模型微调','RAG','Agent','Transformer','多模态','NLP','CV','推荐系统','分布式','微服务','云原生','K8s','Docker','MySQL','Redis','MongoDB','Elasticsearch','Kafka','Spark','Flink']));
+
+function loadData() {
+  // 企业数据
+  const companyState = JSON.parse(localStorage.getItem('zhiyu_company_state') || '{}');
+  companies = companyState.authenticated ? [{...companyState.company, jobCount: companyState.jobs?.length||0, jobs: companyState.jobs||[]}] : [];
+  // 岗位数据
+  jobs = JSON.parse(localStorage.getItem('zhiyu_jobs_all') || '[]');
+  // 人才数据
+  talents = JSON.parse(localStorage.getItem('zhiyu_talents') || '[]');
+  // 计算所有匹配
+  matches = [];
+  const districtCoords = {'张江':{lat:31.21,lng:121.60},'漕河泾':{lat:31.17,lng:121.40},'大零号湾':{lat:31.02,lng:121.43},'临港':{lat:30.88,lng:121.92},'徐汇滨江':{lat:31.18,lng:121.45},'北外滩':{lat:31.25,lng:121.49}};
+  function calcDistance(a,b){const R=6371;const dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;const d=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(d),Math.sqrt(1-d));}
+  jobs.forEach(job => {
+    talents.forEach(t => {
+      const jobTech = new Set(job.techStack);
+      const tTech = new Set((t.techStack||'').split(/[,，]/).map(s=>s.trim()));
+      let tech=0; jobTech.forEach(x=>{if(tTech.has(x))tech++});
+      const techScore = jobTech.size ? Math.min(100,(tech/jobTech.size)*100) : 0;
+      const jc = districtCoords[job.address]||districtCoords['张江'], tc=districtCoords[t.district]||jc;
+      const dist = calcDistance(jc,tc);
+      const geoScore = dist<5?100:dist<15?75:dist<30?50:dist<50?25:0;
+      let will=0;
+      const salMatch = (t.expectSalaryMin||20) <= parseInt(job.salary?.split('-')[1]) && (t.expectSalaryMax||40) >= parseInt(job.salary?.split('-')[0]);
+      if(salMatch)will+=40; if(t.acceptStartup)will+=30; if(t.acceptOption)will+=30;
+      let culture = t.expStartup?30:0; culture += t.pressure||60; culture += job.workStyle.includes(t.workStyle)?25:10; culture = Math.min(100,culture);
+      const total = Math.round(techScore*0.5+geoScore*0.2+will*0.15+culture*0.15);
+      if(total >= 60) matches.push({talent:t, job, score:{total,techScore,geoScore,willScore:will,cultureScore}, time: new Date().toLocaleString()});
+    });
+  });
+}
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.menu-item').forEach(m=>m.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  renderPage(page);
+}
+function renderPage(page) {
+  loadData();
+  if(page==='dashboard') renderDashboard();
+  if(page==='enterprises') renderEnterprises();
+  if(page==='jobs') renderJobsTable();
+  if(page==='talents') renderTalentsTable();
+  if(page==='matches') renderMatchesTable();
+  if(page==='tags') renderTags();
+}
+function renderDashboard() {
+  document.getElementById('s-companies').textContent = companies.length;
+  document.getElementById('s-jobs').textContent = jobs.length;
+  document.getElementById('s-talents').textContent = talents.length;
+  document.getElementById('s-matches').textContent = matches.length;
+  // 技术栈统计
+  const techCount = {};
+  talents.forEach(t => (t.techStack||'').split(/[,，]/).forEach(tech => { if(tech.trim()) techCount[tech.trim()] = (techCount[tech.trim()]||0)+1; }));
+  const topTech = Object.entries(techCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(window.chartTech) window.chartTech.destroy();
+  window.chartTech = new Chart(document.getElementById('chartTech'), {
+    type:'bar', data:{labels:topTech.map(x=>x[0]),datasets:[{label:'人才数量',data:topTech.map(x=>x[1]),backgroundColor:'#667eea'}]},
+    options:{responsive:true,plugins:{legend:{display:false}},indexAxis:'y'}
+  });
+  // 新增趋势（模拟7天数据）
+  const days = [];
+  for(let i=6;i>=0;i--){ const d = new Date(); d.setDate(d.getDate()-i); days.push(`${d.getMonth()+1}/${d.getDate()}`); }
+  if(window.chartTrend) window.chartTrend.destroy();
+  window.chartTrend = new Chart(document.getElementById('chartTrend'), {
+    type:'line', data:{labels:days,datasets:[
+      {label:'新增企业',data:[Math.ceil(Math.random()*5),Math.ceil(Math.random()*5),Math.ceil(Math.random()*5),Math.ceil(Math.random()*5),Math.ceil(Math.random()*5),companies.length>0?1:0,companies.length],borderColor:'#667eea',tension:0.3},
+      {label:'新增岗位',data:jobs.slice(0,7).map(()=>Math.ceil(Math.random()*3)).concat(jobs.length),borderColor:'#52c41a',tension:0.3},
+      {label:'新增人才',data:[Math.ceil(Math.random()*10),Math.ceil(Math.random()*10),Math.ceil(Math.random()*10),Math.ceil(Math.random()*10),Math.ceil(Math.random()*10),talents.length>0?1:0,talents.length],borderColor:'#faad14',tension:0.3}
+    ]}, options:{responsive:true}
+  });
+  // 最近匹配
+  document.getElementById('recentMatches').innerHTML = matches.slice(-10).reverse().map(m => `
+    <tr><td>${m.time}</td><td>${m.talent.name}</td><td>${m.job.title}</td><td>${m.job.companyName}</td><td><strong style="color:#667eea">${m.score.total}分</strong></td></tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:#888">暂无匹配数据</td></tr>';
+}
+function renderEnterprises() {
+  document.getElementById('enterpriseTable').innerHTML = companies.map(c => `
+    <tr>
+      <td><strong>${c.name}</strong></td>
+      <td style="font-family:monospace;font-size:12px">${c.creditCode}</td>
+      <td>${c.address}</td>
+      <td>${c.hrName}（${c.hrPhone}）</td>
+      <td><span class="badge badge-success">已认证</span></td>
+      <td>${c.jobCount}</td>
+      <td><button class="btn btn-danger" onclick="deleteEnterprise('${c.creditCode}')">删除</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="7" style="text-align:center;color:#888">暂无认证企业</td></tr>';
+}
+function renderJobsTable() {
+  document.getElementById('jobsTable').innerHTML = jobs.map(j => `
+    <tr>
+      <td><strong>${j.title}</strong></td>
+      <td>${j.companyName}</td>
+      <td style="color:#667eea">${j.salary||'面议'}</td>
+      <td>${j.address}</td>
+      <td>${j.techStack.slice(0,4).map(t=>`<span class="tag">${t}</span>`).join('')}</td>
+      <td>${j.createTime}</td>
+      <td><span class="badge badge-primary">${j.status}</span></td>
+      <td><button class="btn btn-danger" onclick="deleteJob(${j.id})">下架</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" style="text-align:center;color:#888">暂无发布岗位</td></tr>';
+}
+function renderTalentsTable() {
+  document.getElementById('talentsTable').innerHTML = talents.map(t => `
+    <tr>
+      <td><strong>${t.name}</strong></td>
+      <td><span class="badge badge-success">已认证</span></td>
+      <td>${t.district}</td>
+      <td>${t.years}年</td>
+      <td>${t.expectSalaryMin}-${t.expectSalaryMax}K</td>
+      <td>${(t.techStack||'').split(/[,，]/).slice(0,4).map(t=>`<span class="tag">${t}</span>`).join('')}</td>
+      <td>${t.acceptStartup?'初创✓':''} ${t.acceptOption?'期权✓':''}</td>
+      <td><button class="btn btn-danger" onclick="deleteTalent('${t.id}')">删除</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" style="text-align:center;color:#888">暂无认证人才</td></tr>';
+}
+function renderMatchesTable() {
+  document.getElementById('matchesTable').innerHTML = matches.map(m => `
+    <tr>
+      <td>${m.time}</td><td>${m.talent.name}</td><td>${m.job.title}</td><td>${m.job.companyName}</td>
+      <td><strong style="color:#667eea">${m.score.total}</strong></td>
+      <td>${m.score.techScore}</td><td>${m.score.geoScore}</td><td>${m.score.willScore}</td><td>${m.score.cultureScore}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="9" style="text-align:center;color:#888">暂无匹配记录</td></tr>';
+}
+function renderTags() {
+  document.getElementById('tagList').innerHTML = tags.map((t,i) => `<span class="tag" style="padding:6px 12px;margin:3px;font-size:13px">${t} <span style="cursor:pointer;color:#ff4d4f;margin-left:5px" onclick="deleteTag(${i})">×</span></span>`).join('');
+}
+function addTag() {
+  const val = document.getElementById('newTag').value.trim();
+  if(!val) return;
+  if(!tags.includes(val)) tags.push(val);
+  localStorage.setItem('zhiyu_tech_tags', JSON.stringify(tags));
+  document.getElementById('newTag').value='';
+  renderTags();
+}
+function deleteTag(i) { tags.splice(i,1); localStorage.setItem('zhiyu_tech_tags', JSON.stringify(tags)); renderTags(); }
+function deleteEnterprise(code) {
+  if(!confirm('确认删除该企业？')) return;
+  const state = JSON.parse(localStorage.getItem('zhiyu_company_state')||'{}');
+  if(state.company?.creditCode === code) localStorage.removeItem('zhiyu_company_state');
+  // 删除对应岗位
+  let allJobs = JSON.parse(localStorage.getItem('zhiyu_jobs_all')||'[]');
+  allJobs = allJobs.filter(j=>j.companyId !== 'company_'+code);
+  localStorage.setItem('zhiyu_jobs_all', JSON.stringify(allJobs));
+  renderPage('enterprises');
+}
+function deleteJob(id) {
+  if(!confirm('确认下架该岗位？')) return;
+  let allJobs = JSON.parse(localStorage.getItem('zhiyu_jobs_all')||'[]');
+  allJobs = allJobs.map(j=>j.id===id?{...j,status:'inactive'}:j);
+  localStorage.setItem('zhiyu_jobs_all', JSON.stringify(allJobs));
+  renderPage('jobs');
+}
+function deleteTalent(id) {
+  if(!confirm('确认删除该人才？')) return;
+  let talents = JSON.parse(localStorage.getItem('zhiyu_talents')||'[]');
+  talents = talents.filter(t=>t.id!==id);
+  localStorage.setItem('zhiyu_talents', JSON.stringify(talents));
+  renderPage('talents');
+}
+// 初始化
+showPage('dashboard');
+</script>
+</body>
+</html>

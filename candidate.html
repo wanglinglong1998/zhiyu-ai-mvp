@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知遇求职者端 - AI精准匹配好工作</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif; }
+body { background:#f5f7fa; min-height:100vh; }
+.header { background:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.08); padding:15px 30px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
+.logo { font-size:24px; font-weight:bold; color:#667eea; cursor:pointer; }
+.nav { display:flex; gap:20px; }
+.nav-item { padding:8px 16px; border-radius:8px; cursor:pointer; color:#666; }
+.nav-item.active, .nav-item:hover { background:#667eea; color:#fff; }
+.user-area { display:flex; align-items:center; gap:15px; }
+.btn { padding:8px 16px; border-radius:8px; border:none; cursor:pointer; font-size:14px; transition:all 0.2s; }
+.btn-primary { background:#667eea; color:#fff; }
+.btn-success { background:#52c41a; color:#fff; }
+.btn-outline { background:#fff; border:1px solid #667eea; color:#667eea; }
+.btn-danger { background:#ff4d4f; color:#fff; }
+.main { max-width:1000px; margin:30px auto; padding:0 20px; }
+.card { background:#fff; border-radius:12px; padding:25px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.card-title { font-size:18px; font-weight:600; margin-bottom:20px; color:#333; }
+.form-group { margin-bottom:18px; }
+.form-label { display:block; margin-bottom:8px; font-weight:500; color:#333; }
+.form-input, .form-textarea, .form-select { width:100%; padding:10px 12px; border:1px solid #e0e0e0; border-radius:8px; font-size:14px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:20px; }
+.job-card { border:1px solid #eee; border-radius:12px; padding:20px; transition:all 0.2s; }
+.job-card:hover { box-shadow:0 4px 12px rgba(102,126,234,0.15); border-color:#667eea; }
+.match-score { font-size:32px; font-weight:bold; color:#52c41a; text-align:center; margin-bottom:10px; }
+.tag { display:inline-block; background:#e8f0fe; color:#1967d2; padding:3px 8px; border-radius:4px; font-size:12px; margin:2px; }
+.verified-badge { background:#52c41a; color:#fff; padding:2px 6px; border-radius:4px; font-size:12px; margin-left:8px; }
+.modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px; }
+.modal.active { display:flex; }
+.modal-content { background:#fff; border-radius:16px; max-width:600px; width:100%; max-height:80vh; overflow-y:auto; padding:30px; }
+.chat-window { max-width:800px; width:95%; height:70vh; display:flex; flex-direction:column; }
+.chat-header { padding:15px; border-bottom:1px solid #eee; font-weight:600; }
+.chat-messages { flex:1; padding:20px; overflow-y:auto; }
+.msg { max-width:70%; margin-bottom:15px; padding:10px 14px; border-radius:12px; line-height:1.5; }
+.msg-sent { background:#667eea; color:#fff; margin-left:auto; }
+.msg-received { background:#f0f0f0; color:#333; }
+.chat-input { padding:15px; border-top:1px solid #eee; display:flex; gap:10px; }
+.chat-input input { flex:1; padding:10px; border:1px solid #e0e0e0; border-radius:8px; }
+.upload-area { border:2px dashed #667eea; border-radius:8px; padding:30px; text-align:center; cursor:pointer; margin-bottom:20px; }
+.upload-area:hover { background:#f8f9ff; }
+.tabs { display:flex; gap:10px; margin-bottom:20px; border-bottom:1px solid #eee; }
+.tab { padding:10px 20px; cursor:pointer; border-bottom:2px solid transparent; color:#666; }
+.tab.active { color:#667eea; border-color:#667eea; font-weight:600; }
+.privacy-link { color:#667eea; cursor:pointer; text-decoration:underline; }
+.settings-row { display:flex; gap:10px; margin-bottom:10px; }
+.settings-row input { flex:1; padding:8px; border:1px solid #e0e0e0; border-radius:6px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo" onclick="showPage('home')">知遇 求职者端</div>
+  <div class="nav">
+    <div class="nav-item active" data-page="home" onclick="showPage('home')">推荐岗位</div>
+    <div class="nav-item" data-page="all-jobs" onclick="showPage('all-jobs')">全部岗位</div>
+    <div class="nav-item" data-page="applications" onclick="showPage('applications')">投递记录</div>
+    <div class="nav-item" data-page="messages" onclick="showPage('messages')">消息</div>
+    <div class="nav-item" data-page="profile" onclick="showPage('profile')">我的简历</div>
+  </div>
+  <div class="user-area">
+    <button class="btn btn-outline" onclick="showSettings()">⚙️ 设置</button>
+    <span id="userName" style="display:none"></span>
+    <button class="btn btn-primary" id="registerBtn" onclick="showRegister()">注册/认证</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- 推荐岗位 -->
+  <div id="page-home" class="page">
+    <div class="card">
+      <div class="card-title">为你推荐的匹配岗位</div>
+      <div id="recommendJobs" class="grid"></div>
+    </div>
+  </div>
+
+  <!-- 全部岗位 -->
+  <div id="page-all-jobs" class="page" style="display:none">
+    <div class="card">
+      <div class="card-title">全部在招岗位</div>
+      <div id="allJobsGrid" class="grid"></div>
+    </div>
+  </div>
+
+  <!-- 投递记录 -->
+  <div id="page-applications" class="page" style="display:none">
+    <div class="card">
+      <div class="card-title">我的投递记录</div>
+      <div id="applicationList"></div>
+    </div>
+  </div>
+
+  <!-- 消息 -->
+  <div id="page-messages" class="page" style="display:none">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:grid;grid-template-columns:300px 1fr;min-height:600px">
+        <div style="border-right:1px solid #eee">
+          <div style="padding:15px;border-bottom:1px solid #eee;font-weight:600">会话列表</div>
+          <div id="tConversationList"></div>
+        </div>
+        <div id="tChatArea" style="display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888;padding:40px">
+          选择一个会话开始聊天
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 我的简历 -->
+  <div id="page-profile" class="page" style="display:none">
+    <div class="card" id="profileUnauth">
+      <div class="card-title">请先完成实名认证</div>
+      <p style="margin-bottom:20px;color:#666">完成实名认证和简历登记，即可查看匹配岗位、投递简历</p>
+      <button class="btn btn-primary" onclick="showRegister()">立即注册认证</button>
+    </div>
+    <div id="profileContent" style="display:none">
+      <div class="card">
+        <div class="card-title">我的简历 <span class="verified-badge">已实名认证</span></div>
+        <div id="profileInfo"></div>
+        <button class="btn btn-primary" style="margin-top:15px" onclick="showRegister(true)">编辑简历</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 注册/简历弹窗 -->
+<div class="modal" id="registerModal">
+  <div class="modal-content" style="max-width:700px">
+    <div class="card-title" id="registerTitle">注册并完成实名认证
+      <button class="btn btn-outline" onclick="closeModal('registerModal')">关闭</button>
+    </div>
+    <div id="registerStep1">
+      <div class="form-group">
+        <label class="form-label">姓名</label>
+        <input type="text" class="form-input" id="reg_name" placeholder="请输入真实姓名">
+      </div>
+      <div class="form-group">
+        <label class="form-label">手机号</label>
+        <div style="display:flex;gap:10px">
+          <input type="tel" class="form-input" id="reg_phone" placeholder="11位手机号" maxlength="11" style="flex:1">
+          <button class="btn btn-outline" onclick="sendRegSms(this)" id="regSmsBtn">发送验证码</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">短信验证码</label>
+        <input type="text" class="form-input" id="reg_smsCode" placeholder="6位短信验证码" maxlength="6">
+      </div>
+      <div class="form-group">
+        <label class="form-label">身份证号（18位）</label>
+        <input type="text" class="form-input" id="reg_idCard" placeholder="18位身份证号码" maxlength="18">
+      </div>
+      <div class="form-group">
+        <label class="form-label">设置密码（≥6位，含字母和数字）</label>
+        <input type="password" class="form-input" id="reg_password" placeholder="请设置登录密码">
+      </div>
+      <div class="form-group">
+        <label class="form-label">确认密码</label>
+        <input type="password" class="form-input" id="reg_password2" placeholder="再次输入密码">
+      </div>
+      <div class="form-group" style="display:flex;gap:8px;align-items:flex-start">
+        <input type="checkbox" id="privacyCheck" style="margin-top:4px">
+        <label for="privacyCheck" style="font-size:13px;color:#666">我已阅读并同意 <span class="privacy-link" onclick="showPrivacy()">《隐私政策与用户协议》</span>，同意平台收集我的简历信息用于岗位匹配</label>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="nextRegStep(2)">下一步：填写简历</button>
+    </div>
+    <div id="registerStep2" style="display:none">
+      <div class="upload-area" onclick="document.getElementById('resumeFile').click()">
+        <div style="font-size:40px;margin-bottom:10px">📄</div>
+        <div style="margin-bottom:8px;font-weight:500">点击上传PDF简历（可选）</div>
+        <div style="font-size:12px;color:#888">AI自动解析提取信息，30秒完成，也可以手动填写</div>
+        <input type="file" id="resumeFile" accept=".pdf,.docx,.txt" style="display:none" onchange="parseResumeFile(event)">
+      </div>
+      <div id="resumeParseLoading" style="display:none;text-align:center;padding:15px;color:#667eea">🔍 AI正在解析简历，请稍候...</div>
+      <div class="form-group">
+        <label class="form-label">现居住地址（选具体区域）</label>
+        <select class="form-select" id="reg_district">
+          <option value="张江">浦东新区-张江</option>
+          <option value="漕河泾">徐汇区-漕河泾</option>
+          <option value="大零号湾">闵行区-大零号湾</option>
+          <option value="临港">浦东新区-临港</option>
+          <option value="徐汇滨江">徐汇区-徐汇滨江</option>
+          <option value="北外滩">虹口区-北外滩</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
+        <div class="form-group">
+          <label class="form-label">工作年限</label>
+          <input type="number" class="form-input" id="reg_years" placeholder="如：3" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">期望薪资（K/月）</label>
+          <input type="text" class="form-input" id="reg_salary" placeholder="如：25-40">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">技术栈（多个用逗号分隔）</label>
+        <input type="text" class="form-input" id="reg_techStack" placeholder="如：Python, PyTorch, 大模型微调, RAG">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
+        <div class="form-group">
+          <label class="form-label">是否接受期权</label>
+          <select class="form-select" id="reg_option">
+            <option value="true">是，愿意接受期权</option>
+            <option value="false">否，优先现金</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">是否接受初创机会</label>
+          <select class="form-select" id="reg_startup">
+            <option value="true">是，愿意加入初创公司</option>
+            <option value="false">否，优先成熟公司</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">自我描述/项目经验</label>
+        <textarea class="form-textarea" id="reg_desc" placeholder="简单介绍自己的工作经历、项目经验、工作风格偏好"></textarea>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-outline" onclick="nextRegStep(1)">上一步</button>
+        <button class="btn btn-success" style="flex:1" onclick="completeRegister()">完成注册</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 隐私政策弹窗 -->
+<div class="modal" id="privacyModal">
+  <div class="modal-content">
+    <div class="card-title">隐私政策与用户协议
+      <button class="btn btn-outline" onclick="closeModal('privacyModal')">我已阅读</button>
+    </div>
+    <div style="line-height:1.8;font-size:14px;color:#444">
+      <h4 style="margin:15px 0 8px">1. 信息收集范围</h4>
+      <p>我们仅收集您主动提供的求职必要信息，包括：姓名、手机号、身份证号（用于实名认证）、简历信息、技术标签、求职意向等，不会收集与求职无关的个人信息。</p>
+      <h4 style="margin:15px 0 8px">2. 信息使用目的</h4>
+      <p>您的简历信息仅用于向您匹配合适的工作岗位、向企业展示您的求职意向，不会用于任何广告营销、不会出售给第三方。</p>
+      <h4 style="margin:15px 0 8px">3. 您的权利</h4>
+      <p>您有权随时查看、修改、删除您的个人信息，有权注销账号，注销后我们将永久删除您的所有数据。</p>
+      <h4 style="margin:15px 0 8px">4. 数据安全</h4>
+      <p>我们采用加密存储、权限管控等技术措施保护您的个人信息安全，防止数据泄露、滥用。</p>
+      <h4 style="margin:15px 0 8px">5. 信息共享</h4>
+      <p>只有在您主动投递岗位后，企业才能查看您的完整简历；未经过您的同意，我们不会向任何第三方共享您的个人信息。</p>
+    </div>
+  </div>
+</div>
+
+<!-- 岗位详情弹窗 -->
+<div class="modal" id="jobModal">
+  <div class="modal-content">
+    <div class="card-title" id="jobModalTitle">岗位详情
+      <button class="btn btn-outline" onclick="closeModal('jobModal')">关闭</button>
+    </div>
+    <div id="jobDetail"></div>
+    <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeModal('jobModal')">返回</button>
+      <button class="btn btn-primary" id="applyBtn" onclick="applyJob()">投递简历</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="modal" id="settingsModal">
+  <div class="modal-content">
+    <div class="card-title">AI大模型配置
+      <button class="btn btn-outline" onclick="closeModal('settingsModal')">关闭</button>
+    </div>
+    <p style="margin-bottom:15px;color:#666;font-size:14px">配置大模型API Key即可启用AI简历解析，Key仅存储在本地浏览器</p>
+    <div class="settings-row">
+      <label style="width:100px;line-height:38px">API端点</label>
+      <input type="text" id="t_apiEndpoint">
+    </div>
+    <div class="settings-row">
+      <label style="width:100px;line-height:38px">API Key</label>
+      <input type="password" id="t_apiKey">
+    </div>
+    <div class="settings-row">
+      <label style="width:100px;line-height:38px">模型名称</label>
+      <input type="text" id="t_modelName">
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="saveSettings()">保存配置</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+let state = JSON.parse(localStorage.getItem('zhiyu_talent_state') || JSON.stringify({
+  authenticated: false,
+  user: {},
+  applications: [],
+  conversations: [],
+  currentChat: null
+}));
+function saveState() { localStorage.setItem('zhiyu_talent_state', JSON.stringify(state)); }
+
+// 公共数据加载
+if(!localStorage.getItem('zhiyu_talents')) localStorage.setItem('zhiyu_talents', '[]');
+if(!localStorage.getItem('zhiyu_jobs_all')) localStorage.setItem('zhiyu_jobs_all', '[]');
+if(!localStorage.getItem('zhiyu_messages_all')) localStorage.setItem('zhiyu_messages_all', '{}');
+if(!localStorage.getItem('zhiyu_applications')) localStorage.setItem('zhiyu_applications', '[]');
+
+// 技术标签库
+const techTags = ['Python','Java','Go','C++','JavaScript','TypeScript','React','Vue','Node.js','PyTorch','TensorFlow','大模型','LLM','大模型微调','RAG','Agent','Transformer','多模态','NLP','CV','推荐系统','分布式','微服务','云原生','K8s','Docker','MySQL','Redis','MongoDB','Elasticsearch','Kafka','Spark','Flink','算法','后端','前端','全栈','架构师','产品经理'];
+
+// 页面切换
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+page).style.display = 'block';
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  if(page === 'home') renderRecommendJobs();
+  if(page === 'all-jobs') renderAllJobs();
+  if(page === 'applications') renderApplications();
+  if(page === 'messages') renderTConversations();
+  if(page === 'profile') renderProfile();
+}
+
+// 注册/认证
+function showRegister(edit=false) {
+  document.getElementById('registerModal').classList.add('active');
+  nextRegStep(1);
+  if(edit && state.authenticated) {
+    document.getElementById('registerTitle').textContent = '编辑简历';
+    document.getElementById('reg_name').value = state.user.name;
+    document.getElementById('reg_phone').value = state.user.phone;
+    document.getElementById('reg_idCard').value = state.user.idCard;
+    document.getElementById('reg_district').value = state.user.district;
+    document.getElementById('reg_years').value = state.user.years;
+    document.getElementById('reg_salary').value = `${state.user.expectSalaryMin}-${state.user.expectSalaryMax}K`;
+    document.getElementById('reg_techStack').value = state.user.techStack;
+    document.getElementById('reg_option').value = state.user.acceptOption.toString();
+    document.getElementById('reg_startup').value = state.user.acceptStartup.toString();
+    document.getElementById('reg_desc').value = state.user.description;
+    nextRegStep(2);
+  }
+}
+function nextRegStep(step) {
+  if(step === 2) {
+    if(!document.getElementById('reg_name').value || document.getElementById('reg_phone').value.length !== 11 || document.getElementById('reg_smsCode').value.length !==6 || document.getElementById('reg_idCard').value.length !==18) {
+      alert('请填写完整实名认证信息，验证码为6位'); return;
+    }
+    const pwd = document.getElementById('reg_password').value;
+    if(pwd.length <6 || !/[a-zA-Z]/.test(pwd) || !/\d/.test(pwd)) { alert('密码长度至少6位，需包含字母和数字'); return; }
+    if(pwd !== document.getElementById('reg_password2').value) { alert('两次密码不一致'); return; }
+    if(!document.getElementById('privacyCheck').checked) { alert('请先阅读并同意隐私政策'); return; }
+  }
+  document.getElementById('registerStep1').style.display = step===1 ? 'block' : 'none';
+  document.getElementById('registerStep2').style.display = step===2 ? 'block' : 'none';
+}
+function sendRegSms(btn) {
+  let count = 60; btn.disabled = true;
+  const timer = setInterval(()=>{ btn.textContent = count+'秒后重发'; count--; if(count<0){clearInterval(timer);btn.disabled=false;btn.textContent='发送验证码';}},1000);
+}
+// 简历解析
+async function parseResumeFile(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  document.getElementById('resumeParseLoading').style.display = 'block';
+  let text = '';
+  try {
+    if(file.name.endsWith('.pdf')) {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+      for(let i=1;i<=pdf.numPages;i++) { const page = await pdf.getPage(i); const c = await page.getTextContent(); text += c.items.map(x=>x.str).join(' '); }
+    } else text = await file.text();
+    const parsed = await aiParseResume(text);
+    document.getElementById('reg_techStack').value = parsed.techStack || '';
+    document.getElementById('reg_years').value = parsed.years || 3;
+    document.getElementById('reg_salary').value = parsed.expectSalaryMin && parsed.expectSalaryMax ? `${parsed.expectSalaryMin}-${parsed.expectSalaryMax}K` : '';
+    document.getElementById('reg_option').value = parsed.acceptOption ? 'true' : 'false';
+    document.getElementById('reg_startup').value = parsed.acceptStartup ? 'true' : 'false';
+    document.getElementById('reg_desc').value = text.slice(0,1000);
+    if(parsed.currentAddress) {
+      const distMap = {'张江':'张江','漕河泾':'漕河泾','大零号湾':'大零号湾','临港':'临港','徐汇':'徐汇滨江','虹口':'北外滩','浦东':'张江','闵行':'大零号湾'};
+      Object.keys(distMap).forEach(k => { if(parsed.currentAddress.includes(k)) document.getElementById('reg_district').value = distMap[k]; });
+    }
+  } catch(err) { alert('简历解析失败，请手动填写'); console.error(err); }
+  document.getElementById('resumeParseLoading').style.display = 'none';
+}
+async function aiParseResume(text) {
+  const settings = JSON.parse(localStorage.getItem('zhiyu_ai_settings')||'{}');
+  const fallback = parseResumeFallback(text);
+  if(!settings.apiKey) return fallback;
+  try {
+    const res = await fetch(settings.apiEndpoint, {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.apiKey},
+      body: JSON.stringify({model:settings.modelName||'gpt-3.5-turbo', messages:[{role:'system',content:'你是专业简历解析助手，返回JSON：{"name":"","phone":"","techStack":"技术栈逗号分隔","years":工作年限数字,"currentAddress":"现居住地","expectSalaryMin":数字K,"expectSalaryMax":数字K,"acceptOption":布尔,"acceptStartup":布尔,"workStyle":""}], temperature:0.1},{role:'user',content:text}]})
+    });
+    const data = await res.json();
+    const match = data.choices[0].message.content.match(/\{[\s\S]*\}/);
+    return match ? JSON.parse(match[0]) : fallback;
+  } catch(e) { return fallback; }
+}
+function parseResumeFallback(text) {
+  const tech = techTags.filter(t=>text.includes(t)).join(',');
+  const yearMatch = text.match(/(\d+)\s*年.*(工作|经验)/);
+  const salMatch = text.match(/(\d+)\s*[-~–]\s*(\d+)\s*[kK千]/);
+  return {
+    name: text.match(/姓名[:：]?\s*([^\s\n，,。]+)/)?.[1] || '',
+    phone: text.match(/1[3-9]\d{9}/)?.[0] || '',
+    techStack: tech,
+    years: yearMatch ? parseInt(yearMatch[1]) : 3,
+    currentAddress: text.match(/(上海|张江|漕河泾|大零号湾|临港|徐汇|闵行|浦东)/)?.[0] || '上海',
+    expectSalaryMin: salMatch ? parseInt(salMatch[1]) : 20,
+    expectSalaryMax: salMatch ? parseInt(salMatch[2]) : 40,
+    acceptOption: text.includes('期权'),
+    acceptStartup: text.includes('初创'),
+    workStyle: ''
+  };
+}
+function completeRegister() {
+  const salaryStr = document.getElementById('reg_salary').value || '20-40';
+  const salary = salaryStr.match(/(\d+)\D+(\d+)/) || [,20,40];
+  state.authenticated = true;
+  state.user = {
+    id: 'talent_'+Date.now(),
+    name: document.getElementById('reg_name').value,
+    phone: document.getElementById('reg_phone').value,
+    idCard: document.getElementById('reg_idCard').value,
+    district: document.getElementById('reg_district').value,
+    years: parseInt(document.getElementById('reg_years').value) || 3,
+    expectSalaryMin: parseInt(salary[1]),
+    expectSalaryMax: parseInt(salary[2]),
+    techStack: document.getElementById('reg_techStack').value,
+    acceptOption: document.getElementById('reg_option').value === 'true',
+    acceptStartup: document.getElementById('reg_startup').value === 'true',
+    description: document.getElementById('reg_desc').value,
+    verified: true,
+    workStyle: '快速迭代',
+    pressure: 70,
+    expStartup: document.getElementById('reg_startup').value === 'true',
+    registerTime: new Date().toLocaleString()
+  };
+  // 保存到人才库
+  const talents = JSON.parse(localStorage.getItem('zhiyu_talents'));
+  const existIdx = talents.findIndex(t=>t.id===state.user.id);
+  if(existIdx >=0) talents[existIdx] = state.user; else talents.push(state.user);
+  localStorage.setItem('zhiyu_talents', JSON.stringify(talents));
+  saveState();
+  closeModal('registerModal');
+  document.getElementById('registerBtn').style.display = 'none';
+  document.getElementById('userName').style.display = 'inline-block';
+  document.getElementById('userName').textContent = state.user.name;
+  document.getElementById('profileUnauth').style.display = 'none';
+  document.getElementById('profileContent').style.display = 'block';
+  alert('注册成功！现在可以查看匹配岗位、投递简历');
+  showPage('home');
+}
+
+// 匹配计算（和企业端同算法）
+const districtCoords = {'张江':{lat:31.21,lng:121.60},'漕河泾':{lat:31.17,lng:121.40},'大零号湾':{lat:31.02,lng:121.43},'临港':{lat:30.88,lng:121.92},'徐汇滨江':{lat:31.18,lng:121.45},'北外滩':{lat:31.25,lng:121.49}};
+function calcDistance(a,b){const R=6371;const dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;const d=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(d),Math.sqrt(1-d));}
+function calcMatchForTalent(job) {
+  const t = state.user;
+  const jobTech = new Set(job.techStack);
+  const tTech = new Set((t.techStack||'').split(/[,，]/).map(s=>s.trim()));
+  let tech = 0; jobTech.forEach(x=>{if(tTech.has(x))tech++});
+  const techScore = jobTech.size ? Math.min(100, (tech/jobTech.size)*100) : 0;
+  const jc = districtCoords[job.address]||districtCoords['张江'], tc = districtCoords[t.district]||jc;
+  const dist = calcDistance(jc,tc);
+  const geoScore = dist<5?100:dist<15?75:dist<30?50:dist<50?25:0;
+  let will = 0;
+  const salMatch = t.expectSalaryMin <= parseInt(job.salary?.split('-')[1]) && t.expectSalaryMax >= parseInt(job.salary?.split('-')[0]);
+  if(salMatch) will+=40; if(t.acceptStartup) will+=30; if(t.acceptOption) will+=30;
+  let culture = t.expStartup ? 30 : 0; culture += t.pressure || 60; culture += job.workStyle.includes(t.workStyle) ? 25 : 10; culture = Math.min(100, culture);
+  return {total:Math.round(techScore*0.5+geoScore*0.2+will*0.15+culture*0.15), techScore, geoScore, willScore:will, cultureScore:culture, distance:Math.round(dist)};
+}
+
+// 渲染岗位
+function renderJobs(containerId, jobs) {
+  const container = document.getElementById(containerId);
+  if(!state.authenticated) { container.innerHTML = '<p style="text-align:center;color:#888;padding:50px">请先完成实名认证，即可查看匹配岗位</p>'; return; }
+  const jobsWithScore = jobs.map(job => ({...job, score: calcMatchForTalent(job)})).sort((a,b)=>b.score.total - a.score.total);
+  if(jobsWithScore.length ===0) { container.innerHTML = '<p style="text-align:center;color:#888;padding:50px">暂无匹配岗位，稍后再来看看吧</p>'; return; }
+  container.innerHTML = jobsWithScore.map((job,i) => `
+    <div class="job-card">
+      <div class="match-score">${job.score.total}分</div>
+      <div style="font-weight:600;font-size:16px;margin-bottom:5px">${job.title}</div>
+      <div style="color:#667eea;margin-bottom:8px">${job.salary || '面议'} · ${job.address}</div>
+      <div style="font-size:14px;color:#666;margin-bottom:10px">${job.companyName} ${job.verified ? '<span class="verified-badge">已认证</span>' : ''}</div>
+      <div style="margin-bottom:10px">${job.techStack.slice(0,5).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      <button class="btn btn-primary" style="width:100%" onclick="viewJob(${job.id}, '${containerId}')">查看详情</button>
+    </div>
+  `).join('');
+}
+function renderRecommendJobs() {
+  const allJobs = JSON.parse(localStorage.getItem('zhiyu_jobs_all')||'[]').filter(j=>j.status==='active');
+  const matched = allJobs.map(j=>({...j, score:calcMatchForTalent(j)})).filter(j=>j.score.total>=60);
+  renderJobs('recommendJobs', matched);
+}
+function renderAllJobs() {
+  const allJobs = JSON.parse(localStorage.getItem('zhiyu_jobs_all')||'[]').filter(j=>j.status==='active');
+  renderJobs('allJobsGrid', allJobs);
+}
+let currentJobId = null;
+function viewJob(jobId, from) {
+  const jobs = JSON.parse(localStorage.getItem('zhiyu_jobs_all')||'[]');
+  const job = jobs.find(j=>j.id===jobId);
+  if(!job) return;
+  currentJobId = jobId;
+  const score = calcMatchForTalent(job);
+  // 检查是否已投递
+  const apps = JSON.parse(localStorage.getItem('zhiyu_applications')||'[]');
+  const applied = apps.find(a=>a.talentId===state.user.id && a.jobId===jobId);
+  document.getElementById('jobDetail').innerHTML = `
+    <h3 style="margin-bottom:10px">${job.title} <span style="color:#667eea">${job.salary}</span></h3>
+    <div style="color:#666;margin-bottom:15px">${job.companyName} <span class="verified-badge">企业已认证</span> · ${job.address} · 匹配度${score.total}分</div>
+    <div style="margin-bottom:15px"><strong>团队情况：</strong>${job.team || '初创团队，技术氛围好'}</div>
+    <div style="margin-bottom:15px"><strong>技术栈：</strong>${job.techStack.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    <div style="margin-bottom:15px"><strong>招人要求：</strong><div style="line-height:1.8;color:#444;margin-top:5px">${job.requirement || '无特别要求'}</div></div>
+    <div style="margin-bottom:15px"><strong>工作风格：</strong>${job.workStyle.join('、')}</div>
+    <div style="padding:10px;background:#f8f9ff;border-radius:8px;font-size:13px">
+      <strong>匹配分析：</strong>通勤距离${score.distance}km，技术栈匹配${score.techScore}分，求职意愿${score.willScore}分，文化适配${score.cultureScore}分
+    </div>
+    ${applied ? '<div style="margin-top:10px;color:#52c41a">✅ 您已投递该岗位，请等待企业联系</div>' : ''}
+  `;
+  document.getElementById('applyBtn').style.display = applied ? 'none' : 'inline-block';
+  document.getElementById('jobModal').classList.add('active');
+}
+let applyCount = 0;
+function applyJob() {
+  if(!state.authenticated) { alert('请先完成实名认证'); return; }
+  if(applyCount >= 5) { alert('每日最多投递5个岗位，避免海投'); return; }
+  const apps = JSON.parse(localStorage.getItem('zhiyu_applications')||'[]');
+  apps.push({talentId:state.user.id, jobId:currentJobId, time:new Date().toLocaleString(), status:'已投递'});
+  localStorage.setItem('zhiyu_applications', JSON.stringify(apps));
+  state.applications.push({jobId:currentJobId, time:new Date().toLocaleString(), status:'已投递'});
+  saveState();
+  applyCount++;
+  closeModal('jobModal');
+  alert('投递成功！企业会尽快查看您的简历，可在投递记录中查看进度');
+  showPage('applications');
+}
+function renderApplications() {
+  const allJobs = JSON.parse(localStorage.getItem('zhiyu_jobs_all')||'[]');
+  const apps = JSON.parse(localStorage.getItem('zhiyu_applications')||'[]').filter(a=>a.talentId===state.user.id);
+  const container = document.getElementById('applicationList');
+  if(apps.length===0) { container.innerHTML='<p style="text-align:center;color:#888;padding:50px">暂无投递记录</p>'; return; }
+  container.innerHTML = apps.map(app => {
+    const job = allJobs.find(j=>j.id===app.jobId);
+    if(!job) return '';
+    const statusColor = {'已投递':'#1967d2','已查看':'#faad14','邀约面试':'#52c41a','不合适':'#ff4d4f'};
+    return `<div style="padding:15px;border:1px solid #eee;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:600;margin-bottom:5px">${job.title} · ${job.companyName}</div>
+        <div style="font-size:13px;color:#666">${job.salary} · ${job.address} · 投递于${app.time}</div>
+      </div>
+      <div style="color:${statusColor[app.status]||'#666'};font-weight:500">${app.status}</div>
+    </div>`;
+  }).join('');
+}
+function renderProfile() {
+  if(!state.authenticated) return;
+  document.getElementById('profileInfo').innerHTML = `
+    <h3 style="margin-bottom:15px">${state.user.name} <span class="verified-badge">已认证</span></h3>
+    <div style="margin-bottom:10px">📍 居住地：${state.user.district}</div>
+    <div style="margin-bottom:10px">💼 工作年限：${state.user.years}年</div>
+    <div style="margin-bottom:10px">💰 期望薪资：${state.user.expectSalaryMin}-${state.user.expectSalaryMax}K ${state.user.acceptOption? '· 接受期权':''} ${state.user.acceptStartup? '· 接受初创':''}</div>
+    <div style="margin-bottom:15px"><strong>技术栈：</strong>${(state.user.techStack||'').split(/[,，]/).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    <div><strong>自我描述：</strong><div style="margin-top:8px;line-height:1.8;color:#444">${state.user.description || '无'}</div></div>
+  `;
+}
+// IM功能
+function renderTConversations() {
+  const allMsgs = JSON.parse(localStorage.getItem('zhiyu_messages_all')||'{}');
+  const convs = state.conversations;
+  const container = document.getElementById('tConversationList');
+  if(convs.length===0) { container.innerHTML='<div style="padding:30px;text-align:center;color:#888">暂无会话</div>'; return; }
+  container.innerHTML = convs.map(conv => {
+    const msgs = allMsgs[conv.id]||[];
+    const lastMsg = msgs[msgs.length-1];
+    const unread = msgs.filter(m=>m.to==='talent'&&!m.read).length;
+    return `<div onclick="openTChat('${conv.id}','${conv.name}')" style="padding:15px;border-bottom:1px solid #eee;cursor:pointer">
+      <div style="font-weight:500">${conv.name} ${unread>0?`<span style="background:#ff4d4f;color:#fff;padding:1px 6px;border-radius:10px;font-size:11px;float:right">${unread}</span>`:''}</div>
+      <div style="font-size:12px;color:#888">${lastMsg?.content || '开始聊天吧'}</div>
+    </div>`;
+  }).join('');
+}
+function openTChat(convId, name) {
+  state.currentChat = {id: convId, name};
+  const allMsgs = JSON.parse(localStorage.getItem('zhiyu_messages_all')||'{}');
+  if(!allMsgs[convId]) allMsgs[convId] = [];
+  allMsgs[convId].forEach(m=>{if(m.to==='talent')m.read=true;});
+  localStorage.setItem('zhiyu_messages_all', JSON.stringify(allMsgs));
+  saveState();
+  renderTConversations();
+  renderTChatWindow();
+}
+function renderTChatWindow() {
+  if(!state.currentChat) return;
+  const allMsgs = JSON.parse(localStorage.getItem('zhiyu_messages_all')||'{}');
+  const msgs = allMsgs[state.currentChat.id]||[];
+  document.getElementById('tChatArea').innerHTML = `
+    <div class="chat-window" style="display:flex">
+      <div class="chat-header">与 ${state.currentChat.name} 的对话</div>
+      <div class="chat-messages" id="tChatMessages">
+        ${msgs.map(m=>`<div class="msg ${m.from==='talent'?'msg-sent':'msg-received'}">${m.content}<div style="font-size:10px;opacity:0.7;margin-top:3px">${m.time}</div></div>`).join('')}
+      </div>
+      <div class="chat-input">
+        <input type="text" id="tChatInput" placeholder="输入消息..." onkeypress="if(event.key==='Enter')sendTMsg()">
+        <button class="btn btn-primary" onclick="sendTMsg()">发送</button>
+      </div>
+    </div>`;
+  const d = document.getElementById('tChatMessages');
+  d.scrollTop = d.scrollHeight;
+}
+function sendTMsg() {
+  const input = document.getElementById('tChatInput');
+  const content = input.value.trim();
+  if(!content || !state.currentChat) return;
+  const allMsgs = JSON.parse(localStorage.getItem('zhiyu_messages_all')||'{}');
+  if(!allMsgs[state.currentChat.id]) allMsgs[state.currentChat.id] = [];
+  allMsgs[state.currentChat.id].push({from:'talent',to:'company',content,time:new Date().toLocaleString(),read:false});
+  localStorage.setItem('zhiyu_messages_all', JSON.stringify(allMsgs));
+  input.value='';
+  renderTChatWindow(); renderTConversations();
+}
+setInterval(()=>{
+  // 定时更新投递状态（模拟企业操作）
+  if(state.authenticated && document.getElementById('page-applications').style.display !== 'none') renderApplications();
+  if(document.getElementById('page-messages').style.display !== 'none') { renderTConversations(); if(state.currentChat) renderTChatWindow(); }
+}, 3000);
+// 辅助函数
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function showPrivacy() { document.getElementById('privacyModal').classList.add('active'); }
+function showSettings() { document.getElementById('settingsModal').classList.add('active'); loadSettings(); }
+function loadSettings() {
+  const s = JSON.parse(localStorage.getItem('zhiyu_ai_settings')||'{}');
+  document.getElementById('t_apiEndpoint').value = s.apiEndpoint || 'https://api.openai.com/v1/chat/completions';
+  document.getElementById('t_apiKey').value = s.apiKey || '';
+  document.getElementById('t_modelName').value = s.modelName || 'gpt-3.5-turbo';
+}
+function saveSettings() {
+  localStorage.setItem('zhiyu_ai_settings', JSON.stringify({
+    apiEndpoint: document.getElementById('t_apiEndpoint').value,
+    apiKey: document.getElementById('t_apiKey').value,
+    modelName: document.getElementById('t_modelName').value
+  }));
+  alert('配置保存成功'); closeModal('settingsModal');
+}
+// 初始化
+if(state.authenticated) {
+  document.getElementById('registerBtn').style.display = 'none';
+  document.getElementById('userName').style.display = 'inline-block';
+  document.getElementById('userName').textContent = state.user.name;
+  document.getElementById('profileUnauth').style.display = 'none';
+  document.getElementById('profileContent').style.display = 'block';
+}
+showPage('home');
+</script>
+</body>
+</html>

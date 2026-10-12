@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>知遇 - AI驱动的人才精准匹配平台</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+.container { background:#fff; border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,0.3); max-width:900px; width:100%; padding:60px 40px; text-align:center; }
+.logo { font-size:48px; font-weight:bold; color:#667eea; margin-bottom:10px; }
+.slogan { font-size:20px; color:#666; margin-bottom:50px; }
+.portal { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:30px; margin-bottom:40px; }
+.card { background:#f8f9ff; border-radius:16px; padding:40px 25px; cursor:pointer; transition:all 0.3s; border:2px solid transparent; }
+.card:hover { transform:translateY(-8px); box-shadow:0 12px 30px rgba(102,126,234,0.3); border-color:#667eea; }
+.card-icon { font-size:48px; margin-bottom:15px; }
+.card-title { font-size:20px; font-weight:600; color:#333; margin-bottom:8px; }
+.card-desc { color:#888; font-size:14px; line-height:1.5; }
+.footer { color:#999; font-size:13px; }
+.version { color:#667eea; font-weight:600; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">知遇</div>
+  <div class="slogan">知人善任 · 遇才成事 | AI驱动的人才精准匹配平台</div>
+  <div class="version">MVP V3.0 公网可上线版</div>
+  <div class="portal">
+    <div class="card" onclick="location.href='enterprise.html'">
+      <div class="card-icon">🏢</div>
+      <div class="card-title">企业端</div>
+      <div class="card-desc">快速认证发岗<br>AI智能匹配候选人<br>IM在线沟通</div>
+    </div>
+    <div class="card" onclick="location.href='candidate.html'">
+      <div class="card-icon">👤</div>
+      <div class="card-title">求职者端</div>
+      <div class="card-desc">实名认证登记<br>AI简历自动解析<br>匹配岗位即时通知</div>
+    </div>
+    <div class="card" onclick="location.href='admin.html'">
+      <div class="card-icon">⚙️</div>
+      <div class="card-title">管理后台</div>
+      <div class="card-desc">数据统计看板<br>人才标签管理<br>全平台数据管理</div>
+    </div>
+  </div>
+  <div class="footer">
+    覆盖校招·社招·猎头全场景 | 四维AI匹配 | 按结果付费<br>
+    <br>
+    公网部署：Vercel/Netlify/GitHub Pages 拖拽即可上线
+  </div>
+</div>
+</body>
+</html>
